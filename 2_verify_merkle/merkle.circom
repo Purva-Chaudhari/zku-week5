@@ -1,6 +1,7 @@
 pragma circom 2.0.3;
 include "../node_modules/circomlib/circuits/comparators.circom";
 include "../node_modules/circomlib/circuits/poseidon.circom";
+include "../node_modules/circomlib/circuits/gates.circom";
 include "./hasher.circom";
 
 // if s == 0 returns [in[0], in[1]]
@@ -47,6 +48,24 @@ template ManyMerkleTreeChecker(levels, length, nInputs) {
     // [assignment] verify that the resultant hash (computed merkle root)
     // is in the set of roots received as input
     // Note that running test.sh should create a valid proof in current circuit, even though it doesn't do anything.
+    component eq[levels];
+    for (var i = 0; i < levels; i++) {
+        eq[i] = IsEqual();
+        eq[i].in[0] <== hashers[levels - 1].hash;
+        eq[i].in[1] <== roots[i];
+    }
+
+    // using OR gates over binary array to output 1 or 0
+    component bool[levels];
+    bool[0] = OR();
+    bool[0].a <== eq[0].out;
+    bool[0].b <== 0;
+    for (var i = 1; i < levels; i++) {
+        bool[i] = OR();
+        bool[i].a <== eq[i].out ;
+        bool[i].b <== bool[i-1].out;    
+    }
+    out <== bool[levels-1].out;    
 }
 
 component main = ManyMerkleTreeChecker(2, 2, 3);
